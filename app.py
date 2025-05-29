@@ -3,25 +3,28 @@ import pandas as pd
 import json
 import re
 
-# ----------------- 配置 -----------------
-ADMIN_CREDENTIALS = {"man": "out"}  # 管理员账户
-ADMIN_ONLY = "man"
+# ----------------- 用户配置与状态初始化 -----------------
+def init_user_db():
+    if "user_db" not in st.session_state:
+        st.session_state.user_db = {
+            "man": {"password": "out", "is_admin": True},
+        }
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    if "pending_user" not in st.session_state:
+        st.session_state.pending_user = ""
 
-st.set_page_config(page_title="结构化数据助手", layout="wide")
+init_user_db()
 
 # ----------------- 登录逻辑 -----------------
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "pending_user" not in st.session_state:
-    st.session_state.pending_user = ""
-
 if not st.session_state.authenticated:
     st.markdown("# 🔒 结构化数据助手 - 登录")
     username = st.text_input("用户名")
     password = st.text_input("密码", type="password")
 
     if st.button("登录"):
-        if username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == password:
+        user_db = st.session_state.user_db
+        if username in user_db and user_db[username]["password"] == password:
             st.session_state.pending_user = username
             st.session_state.authenticated = True
             st.experimental_rerun()
@@ -29,24 +32,25 @@ if not st.session_state.authenticated:
             st.error("用户名或密码错误")
     st.stop()
 
-# 登录成功后初始化 username
+# 登录成功后记录当前用户
 if "username" not in st.session_state and st.session_state.pending_user:
     st.session_state.username = st.session_state.pending_user
 
-# ----------------- 页面样式 -----------------
+# ----------------- 页面配置 -----------------
+st.set_page_config(page_title="结构化数据助手", layout="wide")
 st.markdown("""
-    <style>
-    h1, .stTitle {text-align: center;}
-    .stMarkdown, .stDataFrame, .stTextInput, .stTextArea, .stButton {padding: 0 2rem;}
-    .sidebar-title {font-size: 1.2rem; font-weight: bold;}
-    </style>
+<style>
+h1, .stTitle {text-align: center;}
+.stMarkdown, .stDataFrame, .stTextInput, .stTextArea, .stButton {padding: 0 2rem;}
+.sidebar-title {font-size: 1.2rem; font-weight: bold;}
+</style>
 """, unsafe_allow_html=True)
 
 # ----------------- 页面导航 -----------------
 st.sidebar.markdown("## 📂 功能导航")
 page = st.sidebar.radio("请选择功能模块：", ["首页", "管理后台"])
 
-# ----------------- 首页模块 -----------------
+# ----------------- 首页 -----------------
 if page == "首页":
     st.title("📊 结构化数据助手")
 
@@ -58,7 +62,6 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-    # Schema 表格
     schema_data = [
         ["Organization", "描述公司、机构、品牌的基本信息", "name, logo, url, contactPoint, sameAs, address, foundingDate, founder", "企业首页、关于我们页"],
         ["Article", "普通文章内容", "headline, author, datePublished, dateModified, image, mainEntityOfPage, articleBody", "博客、新闻、知识型页面"],
@@ -83,17 +86,15 @@ if page == "首页":
     df = pd.DataFrame(schema_data, columns=["Schema 类型", "用途 / 描述", "常用字段", "推荐页面类型/场景"])
     st.dataframe(df, use_container_width=True)
 
-    # AI语料生成
     st.subheader("✨ AI语料生成工具")
     schema_type = st.text_input("输入 Schema 类型，如：Product")
     if st.button("生成语料"):
         if schema_type.strip():
-            prompt = f"""请帮我生成一个全面的结构化数据（Schema.org）JSON-LD 格式，类型是 \"{schema_type}\"，字段尽量详细，包含所有适合展示在搜索引擎中的字段，结构清晰可编辑，并确保可通过 Google 富媒体测试工具验证。"""
+            prompt = f"请帮我生成一个全面的结构化数据（Schema.org）JSON-LD 格式，类型是 \"{schema_type}\"，字段尽量详细，包含所有适合展示在搜索引擎中的字段，结构清晰可编辑，并确保可通过 Google 富媒体测试工具验证。"
             st.code(prompt, language="text")
         else:
             st.warning("请输入 Schema 类型")
 
-    # JSON-LD 字段比对
     st.subheader("🧠 结构化数据比对分析")
     col1, col2 = st.columns(2)
     with col1:
@@ -116,17 +117,44 @@ if page == "首页":
 
 # ----------------- 管理后台 -----------------
 elif page == "管理后台":
-    if st.session_state.username != ADMIN_ONLY:
-        st.error("🚫 您无权访问后台管理页面")
-    else:
-        st.title("🛠 管理后台")
-        st.markdown("""
-        欢迎回来，管理员！
+    user_db = st.session_state.user_db
+    current_user = st.session_state.username
 
-        **你可以在这里执行以下操作（示例）：**
-        - 审核结构化数据模板（待接入）
-        - 导入 / 导出字段配置（可扩展）
-        - 添加其他账号访问权限
-        - 管理 UI 配色、提示模板等
-        """)
-        st.success("此模块可根据你的需要继续扩展数据库、上传功能、表单编辑等。")
+    if not user_db.get(current_user, {}).get("is_admin"):
+        st.error("🚫 您无权访问后台管理页面")
+        st.stop()
+
+    st.title("🛠 管理后台")
+    st.markdown("当前用户：`{}`（管理员）".format(current_user))
+    st.markdown("---")
+
+    st.subheader("👥 用户管理")
+    st.markdown("### 当前所有用户")
+    user_table = pd.DataFrame([
+        {"用户名": k, "是否管理员": "✅" if v["is_admin"] else "❌"} for k, v in user_db.items()
+    ])
+    st.table(user_table)
+
+    st.markdown("### ➕ 添加新用户")
+    new_user = st.text_input("新用户名")
+    new_pass = st.text_input("新密码", type="password")
+    is_admin = st.checkbox("是否设为管理员")
+    if st.button("添加用户"):
+        if new_user in user_db:
+            st.warning("该用户已存在")
+        elif new_user and new_pass:
+            st.session_state.user_db[new_user] = {"password": new_pass, "is_admin": is_admin}
+            st.success("用户添加成功！")
+            st.experimental_rerun()
+        else:
+            st.error("请输入完整的用户名和密码")
+
+    st.markdown("### 🔑 重置用户密码")
+    selected_user = st.selectbox("选择用户", options=[u for u in user_db if u != current_user])
+    reset_pass = st.text_input("新密码", type="password", key="resetpw")
+    if st.button("重置密码"):
+        if selected_user in user_db and reset_pass:
+            user_db[selected_user]["password"] = reset_pass
+            st.success(f"用户 `{selected_user}` 密码已重置")
+        else:
+            st.warning("请输入新密码")
