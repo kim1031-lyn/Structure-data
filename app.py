@@ -12,20 +12,26 @@ st.set_page_config(page_title="结构化数据助手", layout="wide")
 # ----------------- 登录逻辑 -----------------
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+if "pending_user" not in st.session_state:
+    st.session_state.pending_user = ""
 
 if not st.session_state.authenticated:
     st.markdown("# 🔒 结构化数据助手 - 登录")
     username = st.text_input("用户名")
     password = st.text_input("密码", type="password")
+
     if st.button("登录"):
         if username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == password:
+            st.session_state.pending_user = username
             st.session_state.authenticated = True
-            st.session_state.username = username
-            st.success("登录成功！")
             st.experimental_rerun()
         else:
             st.error("用户名或密码错误")
     st.stop()
+
+# 登录成功后初始化 username
+if "username" not in st.session_state and st.session_state.pending_user:
+    st.session_state.username = st.session_state.pending_user
 
 # ----------------- 页面样式 -----------------
 st.markdown("""
@@ -106,7 +112,7 @@ if page == "首页":
             else:
                 st.info("无重复字段")
         except Exception as e:
-            st.error(f"解析失败，请确保 JSON 格式正确。\\n\\n错误信息: {e}")
+            st.error(f"解析失败，请确保 JSON 格式正确。\n\n错误信息: {e}")
 
 # ----------------- 管理后台 -----------------
 elif page == "管理后台":
