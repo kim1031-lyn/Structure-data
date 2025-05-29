@@ -2,19 +2,35 @@ import streamlit as st
 import pandas as pd
 import json
 import re
+import os
 
-# ----------------- 用户配置与状态初始化 -----------------
+USER_FILE = "users.json"
+
+# ----------------- 用户持久化加载 -----------------
+def load_user_db():
+    if os.path.exists(USER_FILE):
+        with open(USER_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        # 默认管理员账户
+        return {"man": {"password": "out", "is_admin": True}}
+
+# ----------------- 用户持久化保存 -----------------
+def save_user_db(user_db):
+    with open(USER_FILE, "w", encoding="utf-8") as f:
+        json.dump(user_db, f, ensure_ascii=False, indent=2)
+
+# ----------------- 初始化 -----------------
 def init_user_db():
     if "user_db" not in st.session_state:
-        st.session_state.user_db = {
-            "man": {"password": "out", "is_admin": True},
-        }
+        st.session_state.user_db = load_user_db()
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     if "username" not in st.session_state:
         st.session_state.username = ""
 
 init_user_db()
+user_db = st.session_state.user_db
 
 # ----------------- 登录逻辑 -----------------
 if not st.session_state.authenticated:
@@ -23,7 +39,6 @@ if not st.session_state.authenticated:
     password = st.text_input("密码", type="password")
 
     if st.button("登录"):
-        user_db = st.session_state.user_db
         if username in user_db and user_db[username]["password"] == password:
             st.session_state.username = username
             st.session_state.authenticated = True
@@ -113,7 +128,6 @@ if page == "首页":
 
 # ----------------- 管理后台 -----------------
 elif page == "管理后台":
-    user_db = st.session_state.user_db
     current_user = st.session_state.username
 
     if not user_db.get(current_user, {}).get("is_admin"):
@@ -139,7 +153,8 @@ elif page == "管理后台":
         if new_user in user_db:
             st.warning("该用户已存在")
         elif new_user and new_pass:
-            st.session_state.user_db[new_user] = {"password": new_pass, "is_admin": is_admin}
+            user_db[new_user] = {"password": new_pass, "is_admin": is_admin}
+            save_user_db(user_db)
             st.success("用户添加成功！")
             st.experimental_rerun()
         else:
@@ -153,6 +168,7 @@ elif page == "管理后台":
         if st.button("重置密码"):
             if selected_user in user_db and reset_pass:
                 user_db[selected_user]["password"] = reset_pass
+                save_user_db(user_db)
                 st.success(f"用户 `{selected_user}` 密码已重置")
             else:
                 st.warning("请输入新密码")
