@@ -11,8 +11,8 @@ def init_user_db():
         }
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
-    if "pending_user" not in st.session_state:
-        st.session_state.pending_user = ""
+    if "username" not in st.session_state:
+        st.session_state.username = ""
 
 init_user_db()
 
@@ -25,16 +25,12 @@ if not st.session_state.authenticated:
     if st.button("登录"):
         user_db = st.session_state.user_db
         if username in user_db and user_db[username]["password"] == password:
-            st.session_state.pending_user = username
+            st.session_state.username = username
             st.session_state.authenticated = True
-            st.experimental_rerun()
+            st.success("登录成功！请点击左侧导航栏选择功能模块。")
         else:
             st.error("用户名或密码错误")
     st.stop()
-
-# 登录成功后记录当前用户
-if "username" not in st.session_state and st.session_state.pending_user:
-    st.session_state.username = st.session_state.pending_user
 
 # ----------------- 页面配置 -----------------
 st.set_page_config(page_title="结构化数据助手", layout="wide")
@@ -150,11 +146,15 @@ elif page == "管理后台":
             st.error("请输入完整的用户名和密码")
 
     st.markdown("### 🔑 重置用户密码")
-    selected_user = st.selectbox("选择用户", options=[u for u in user_db if u != current_user])
-    reset_pass = st.text_input("新密码", type="password", key="resetpw")
-    if st.button("重置密码"):
-        if selected_user in user_db and reset_pass:
-            user_db[selected_user]["password"] = reset_pass
-            st.success(f"用户 `{selected_user}` 密码已重置")
-        else:
-            st.warning("请输入新密码")
+    selectable_users = [u for u in user_db if u != current_user]
+    if selectable_users:
+        selected_user = st.selectbox("选择用户", options=selectable_users)
+        reset_pass = st.text_input("新密码", type="password", key="resetpw")
+        if st.button("重置密码"):
+            if selected_user in user_db and reset_pass:
+                user_db[selected_user]["password"] = reset_pass
+                st.success(f"用户 `{selected_user}` 密码已重置")
+            else:
+                st.warning("请输入新密码")
+    else:
+        st.info("暂无可重置的其他用户")
