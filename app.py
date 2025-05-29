@@ -5,14 +5,44 @@ import re
 
 # 设置页面标题
 st.set_page_config(page_title="结构化数据助手", layout="wide")
-st.title("\U0001F4CA 结构化数据助手")
+
+# 登录认证逻辑
+ADMIN_CREDENTIALS = {"admin": "your_secure_password"}  # 可扩展为多个用户
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.markdown("# 🔒 结构化数据助手 - 登录")
+    username = st.text_input("用户名")
+    password = st.text_input("密码", type="password")
+    if st.button("登录"):
+        if username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == password:
+            st.session_state.authenticated = True
+            st.session_state.username = username
+            st.experimental_rerun()
+        else:
+            st.error("用户名或密码错误")
+    st.stop()
+
+# 主界面开始
+st.markdown("""
+<style>
+h1, .stTitle {text-align: center;}
+.stMarkdown, .stDataFrame, .stTextInput, .stTextArea, .stButton {padding: 0 2rem;}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("📊 结构化数据助手")
 
 # 外部工具链接
 st.markdown("""
-[🔍 Google 富媒体测试工具](https://search.google.com/test/rich-results)  
-[🧪 Schema.org 验证器](https://validator.schema.org/)  
-[🤖 跳转 ChatGPT](https://chatgpt.com/)
-""")
+<div style="text-align: center;">
+    <a href="https://search.google.com/test/rich-results" target="_blank">🔍 Google 富媒体测试工具</a> |
+    <a href="https://validator.schema.org/" target="_blank">🧪 Schema.org 验证器</a> |
+    <a href="https://chatgpt.com/" target="_blank">🤖 跳转 ChatGPT</a>
+</div>
+""", unsafe_allow_html=True)
 
 # Schema 类型表格数据
 schema_data = [
@@ -36,12 +66,12 @@ schema_data = [
 ]
 
 # 展示结构化数据类型表格
-st.subheader("常见结构化数据类型一览表")
+st.subheader("📘 常见结构化数据类型一览表")
 df = pd.DataFrame(schema_data, columns=["Schema 类型", "用途 / 描述", "常用字段", "推荐页面类型/场景"])
 st.dataframe(df, use_container_width=True)
 
 # AI 语料提示生成工具
-st.subheader("AI语料生成工具")
+st.subheader("✨ AI语料生成工具")
 schema_type = st.text_input("输入 Schema 类型，如：Product")
 if st.button("生成语料"):
     if schema_type.strip():
@@ -51,7 +81,7 @@ if st.button("生成语料"):
         st.warning("请输入 Schema 类型")
 
 # JSON-LD 字段对比工具
-st.subheader("结构化数据比对分析")
+st.subheader("🧠 结构化数据比对分析")
 col1, col2 = st.columns(2)
 with col1:
     original_schema = st.text_area("原始 Schema 粘贴区", height=300)
