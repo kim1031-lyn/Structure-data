@@ -7,7 +7,7 @@ import re
 st.set_page_config(page_title="结构化数据助手", layout="wide")
 
 # 登录认证逻辑
-ADMIN_CREDENTIALS = {"admin": "your_secure_password"}  # 可扩展为多个用户
+ADMIN_CREDENTIALS = {"man": "out"}  # 可扩展为多个用户
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
