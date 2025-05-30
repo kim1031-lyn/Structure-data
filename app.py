@@ -3,7 +3,6 @@ import pandas as pd
 import json
 import re
 import os
-import copy
 
 USER_FILE = "users.json"
 
@@ -13,7 +12,7 @@ def load_user_db():
         with open(USER_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     else:
-        return {"admin": {"password": "admin123", "is_admin": True}}
+        return {"Eric": {"password": "1314", "is_admin": True}}
 
 # ----------------- 用户持久化保存 -----------------
 def save_user_db(user_db):
