@@ -1,8 +1,10 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import json
 import re
 import os
+from datetime import datetime
 
 USER_FILE = "users.json"
 
@@ -161,6 +163,16 @@ elif page == "结构化生成器":
         "VideoObject": ["name", "description", "uploadDate", "thumbnailUrl"]
     }
 
+    TEMPLATE_VALUES = {
+        "Article": {
+            "headline": "示例标题",
+            "author.name": "张三",
+            "datePublished": "2024-01-01",
+            "image": "https://example.com/image.jpg",
+            "articleBody": "这是正文内容"
+        }
+    }
+
     SOCIAL_PLATFORMS = {
         "Facebook": "https://facebook.com/",
         "Instagram": "https://instagram.com/",
@@ -176,6 +188,12 @@ elif page == "结构化生成器":
         selected_schema = st.selectbox("选择 Schema 类型", list(SCHEMA_FIELDS.keys()))
         st.markdown("#### 📌 可用字段（点击选中）")
         selected_fields = st.multiselect("字段选择", SCHEMA_FIELDS[selected_schema])
+
+        if st.button("🧪 使用示例模板") and selected_schema in TEMPLATE_VALUES:
+            for k, v in TEMPLATE_VALUES[selected_schema].items():
+                selected_fields.append(k)
+                st.session_state[f"custom_{k}"] = v
+
         st.markdown("#### 🌐 选择社交平台（可多选）")
         selected_socials = st.multiselect("社交平台", list(SOCIAL_PLATFORMS.keys()))
 
@@ -192,7 +210,15 @@ elif page == "结构化生成器":
         st.markdown("#### ✏️ 输入字段内容")
         for field in selected_fields:
             default_val = st.session_state.get(f"custom_{field}", "")
-            field_inputs[field] = st.text_input(field, value=default_val)
+            if "date" in field.lower():
+                val = st.date_input(field, value=datetime.today()).isoformat()
+            elif "url" in field.lower():
+                val = st.text_input(field, value=default_val, placeholder="https://example.com")
+                if val and not val.startswith("http"):
+                    st.warning(f"字段 {field} 应为合法 URL")
+            else:
+                val = st.text_input(field, value=default_val)
+            field_inputs[field] = val
 
         social_links = []
         if selected_socials:
@@ -200,6 +226,8 @@ elif page == "结构化生成器":
             for platform in selected_socials:
                 url = st.text_input(f"{platform} 链接", placeholder=SOCIAL_PLATFORMS[platform])
                 if url:
+                    if not url.startswith("http"):
+                        st.warning(f"{platform} 链接需为有效 URL")
                     social_links.append(url)
 
         st.markdown("#### 📄 实时 JSON-LD 模板")
@@ -224,7 +252,8 @@ elif page == "结构化生成器":
         if social_links:
             schema["sameAs"] = social_links
 
-        schema_str = json.dumps(schema, indent=2, ensure_ascii=False)
+        pretty = st.toggle("格式化显示 JSON")
+        schema_str = json.dumps(schema, indent=2 if pretty else None, ensure_ascii=False)
         st.code(schema_str, language="json")
 
         if st.button("📋 复制结构化数据"):
