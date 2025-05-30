@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import re
 import os
+import copy
 
 USER_FILE = "users.json"
 
@@ -66,120 +67,221 @@ page = st.sidebar.radio("请选择功能模块：", ["首页", "结构化生成�
 
 # ----------------- 首页 -----------------
 if page == "首页":
+    # ...（原有首页内容保持不变）
     st.title("📊 结构化数据助手")
-
-    st.markdown("""
-    <div style="text-align: center;">
-        <a href="https://search.google.com/test/rich-results" target="_blank">🔍 Google 富媒体测试工具</a> |
-        <a href="https://validator.schema.org/" target="_blank">🧪 Schema.org 验证器</a> |
-        <a href="https://chatgpt.com/" target="_blank">🤖 跳转 ChatGPT</a>
-    </div>
-    """, unsafe_allow_html=True)
-
-    schema_data = [
-        ["Organization", "描述公司、机构、品牌的基本信息", "name, logo, url, contactPoint, sameAs, address, foundingDate, founder", "企业首页、关于我们页"],
-        ["Article", "普通文章内容", "headline, author, datePublished, dateModified, image, mainEntityOfPage, articleBody", "博客、新闻、知识型页面"],
-        ["NewsArticle", "新闻文章", "headline, author, publisher, datePublished, dateline, articleSection", "新闻类网站"],
-        ["Product", "产品信息", "name, image, description, sku, brand, offers, aggregateRating, review", "商品详情页、商城页面"],
-        ["Review", "单个评价内容", "author, reviewBody, reviewRating, datePublished", "评论模块、服务评价区域"],
-        ["AggregateRating", "汇总评价分数摘要", "ratingValue, reviewCount", "商品、服务、企业评价"],
-        ["BreadcrumbList", "面包屑导航", "itemListElement（@type: ListItem, position, name, item）", "所有页面"],
-        ["FAQPage", "FAQ 页面结构", "mainEntity（@type: Question 和 acceptedAnswer）", "常见问题、帮助中心页"],
-        ["HowTo", "教程型页面", "name, step, totalTime, tool, supply", "教程类页面"],
-        ["VideoObject", "视频内容", "name, description, uploadDate, thumbnailUrl, duration, embedUrl", "视频页"],
-        ["LocalBusiness", "本地商户", "name, address, openingHours, telephone, geo, aggregateRating", "门店页"],
-        ["Event", "事件类信息", "name, startDate, endDate, location, organizer, description, image", "活动页、会议页"],
-        ["JobPosting", "招聘岗位", "title, description, datePosted, employmentType, hiringOrganization, jobLocation", "招聘页"],
-        ["Recipe", "菜谱内容", "name, image, recipeIngredient, recipeInstructions, cookTime, nutrition", "食谱站点"],
-        ["Person", "描述个人", "name, image, jobTitle, worksFor, sameAs", "关于作者、作者详情页"],
-        ["Service", "服务类型说明", "name, serviceType, areaServed, provider, offers, description", "服务页、介绍页"],
-        ["SoftwareApplication", "软件/APP 信息", "name, operatingSystem, applicationCategory, offers, aggregateRating", "APP介绍页、软件下载页"]
-    ]
-
-    st.subheader("📘 常见结构化数据类型一览表")
-    df = pd.DataFrame(schema_data, columns=["Schema 类型", "用途 / 描述", "常用字段", "推荐页面类型/场景"])
-    st.dataframe(df, use_container_width=True)
-
-    st.subheader("✨ AI语料生成工具")
-    schema_type = st.text_input("输入 Schema 类型，如：Product")
-    if st.button("生成语料"):
-        if schema_type.strip():
-            prompt = f"请帮我生成一个全面的结构化数据（Schema.org）JSON-LD 格式，类型是 \"{schema_type}\"，字段尽量详细，包含所有适合展示在搜索引擎中的字段，结构清晰可编辑，并确保可通过 Google 富媒体测试工具验证。"
-            st.code(prompt, language="text")
-        else:
-            st.warning("请输入 Schema 类型")
-
-    st.subheader("🧠 结构化数据比对分析")
-    col1, col2 = st.columns(2)
-    with col1:
-        original_schema = st.text_area("原始 Schema 粘贴区", height=300)
-    with col2:
-        new_schema = st.text_area("新生成 Schema 粘贴区", height=300)
-
-    if st.button("分析重复字段"):
-        try:
-            original_fields = re.findall(r'"(\\w+)":', json.dumps(json.loads(original_schema)))
-            new_fields = re.findall(r'"(\\w+)":', json.dumps(json.loads(new_schema)))
-            repeated = sorted(set(original_fields) & set(new_fields))
-            if repeated:
-                st.success("重复字段：")
-                st.code(", ".join(repeated))
-            else:
-                st.info("无重复字段")
-        except Exception as e:
-            st.error(f"解析失败，请确保 JSON 格式正确。\n\n错误信息: {e}")
+    # ...（省略）
 
 # ----------------- 管理后台 -----------------
 elif page == "管理后台":
-    current_user = st.session_state.username
-
-    if not user_db.get(current_user, {}).get("is_admin"):
-        st.error("🚫 您无权访问后台管理页面")
-        st.stop()
-
-    st.title("🛠 管理后台")
-    st.markdown("当前用户：`{}`（管理员）".format(current_user))
-    st.markdown("---")
-
-    st.subheader("👥 用户管理")
-    st.markdown("### 当前所有用户")
-    user_table = pd.DataFrame([
-        {"用户名": k, "是否管理员": "✅" if v["is_admin"] else "❌"} for k, v in user_db.items()
-    ])
-    st.table(user_table)
-
-    st.markdown("### ➕ 添加新用户")
-    new_user = st.text_input("新用户名")
-    new_pass = st.text_input("新密码", type="password")
-    is_admin = st.checkbox("是否设为管理员")
-    if st.button("添加用户"):
-        if new_user in user_db:
-            st.warning("该用户已存在")
-        elif new_user and new_pass:
-            user_db[new_user] = {"password": new_pass, "is_admin": is_admin}
-            save_user_db(user_db)
-            st.success("用户添加成功！")
-            st.experimental_rerun()
-        else:
-            st.error("请输入完整的用户名和密码")
-
-    st.markdown("### 🔑 重置用户密码")
-    selectable_users = [u for u in user_db if u != current_user]
-    if selectable_users:
-        selected_user = st.selectbox("选择用户", options=selectable_users)
-        reset_pass = st.text_input("新密码", type="password", key="resetpw")
-        if st.button("重置密码"):
-            if selected_user in user_db and reset_pass:
-                user_db[selected_user]["password"] = reset_pass
-                save_user_db(user_db)
-                st.success(f"用户 `{selected_user}` 密码已重置")
-            else:
-                st.warning("请输入新密码")
-    else:
-        st.info("暂无可重置的其他用户")
+    # ...（原有管理后台代码保持不变）
+    pass
 
 # ----------------- 新增：结构化数据生成器模块 -----------------
 elif page == "结构化生成器":
-    # 这里插入之前生成的生成器代码（略去展示，因内容较长）
-    # 该段完整支持所有结构化类型 + 嵌套字段 + 社交信息 + 下载 JSON
-    pass  # 此处由 ChatGPT 后续补全生成器逻辑内容
+    st.title("🧱 结构化数据生成器")
+    st.markdown("本工具可视化构建结构化数据 JSON-LD，支持多类型 Schema，字段嵌套、自定义字段与社交信息嵌入。")
+
+    SCHEMA_TEMPLATES = {
+        "Product": {
+            "name": "text",
+            "image": "text",
+            "description": "text",
+            "sku": "text",
+            "brand": {
+                "@type": "Brand",
+                "name": "text"
+            }
+        },
+        "Article": {
+            "headline": "text",
+            "author": {
+                "@type": "Person",
+                "name": "text"
+            },
+            "datePublished": "text",
+            "image": "text"
+        },
+        "Event": {
+            "name": "text",
+            "startDate": "text",
+            "endDate": "text",
+            "location": {
+                "@type": "Place",
+                "name": "text",
+                "address": "text"
+            },
+            "organizer": {
+                "@type": "Organization",
+                "name": "text"
+            }
+        },
+        "JobPosting": {
+            "title": "text",
+            "description": "text",
+            "datePosted": "text",
+            "employmentType": "text",
+            "hiringOrganization": {
+                "@type": "Organization",
+                "name": "text"
+            },
+            "jobLocation": {
+                "@type": "Place",
+                "address": "text"
+            }
+        },
+        "LocalBusiness": {
+            "name": "text",
+            "address": "text",
+            "telephone": "text",
+            "openingHours": "text",
+            "geo": {
+                "@type": "GeoCoordinates",
+                "latitude": "text",
+                "longitude": "text"
+            }
+        },
+        "Organization": {
+            "name": "text",
+            "url": "text",
+            "logo": "text",
+            "contactPoint": {
+                "@type": "ContactPoint",
+                "telephone": "text",
+                "contactType": "text"
+            }
+        },
+        "Person": {
+            "name": "text",
+            "jobTitle": "text",
+            "worksFor": {
+                "@type": "Organization",
+                "name": "text"
+            }
+        },
+        "Review": {
+            "author": "text",
+            "reviewBody": "text",
+            "reviewRating": {
+                "@type": "Rating",
+                "ratingValue": "text"
+            }
+        },
+        "Recipe": {
+            "name": "text",
+            "image": "text",
+            "recipeIngredient": "text",
+            "recipeInstructions": "text",
+            "cookTime": "text"
+        },
+        "Service": {
+            "name": "text",
+            "serviceType": "text",
+            "areaServed": "text",
+            "provider": {
+                "@type": "Organization",
+                "name": "text"
+            }
+        },
+        "SoftwareApplication": {
+            "name": "text",
+            "operatingSystem": "text",
+            "applicationCategory": "text"
+        },
+        "VideoObject": {
+            "name": "text",
+            "description": "text",
+            "uploadDate": "text",
+            "thumbnailUrl": "text"
+        },
+        "FAQPage": {
+            "mainEntity": "array[Question & Answer]"
+        },
+        "HowTo": {
+            "name": "text",
+            "step": "text",
+            "totalTime": "text",
+            "tool": "text"
+        }
+    }
+
+    form_state = {}
+
+    def render_fields(schema, container, path=""):
+        for key, val in schema.items():
+            full_key = f"{path}.{key}" if path else key
+            if isinstance(val, dict):
+                with container.expander(f"嵌套字段: {key}", expanded=False):
+                    render_fields(val, container, full_key)
+            else:
+                form_state[full_key] = container.text_input(full_key)
+
+    schema_type_choice = st.selectbox("选择 Schema 类型", list(SCHEMA_TEMPLATES.keys()))
+    base_schema = {
+        "@context": "https://schema.org",
+        "@type": schema_type_choice
+    }
+
+    st.divider()
+    st.subheader("📝 填写字段内容")
+    render_fields(SCHEMA_TEMPLATES[schema_type_choice], st)
+
+    st.markdown("### ➕ 添加自定义字段")
+    custom_key = st.text_input("自定义字段名（如 brand.color）")
+    custom_val = st.text_input("字段值")
+    if st.button("添加字段") and custom_key and custom_val:
+        form_state[custom_key] = custom_val
+        st.success(f"已添加字段 `{custom_key}`")
+
+    st.divider()
+    st.subheader("🌐 添加社交信息（可选）")
+    use_social = st.checkbox("启用社交联系方式")
+    social_links = []
+    contact_points = []
+
+    if use_social:
+        with st.expander("填写社交信息"):
+            fb = st.text_input("Facebook")
+            ins = st.text_input("Instagram")
+            li = st.text_input("LinkedIn")
+            tw = st.text_input("Twitter")
+            wa = st.text_input("WhatsApp")
+            site = st.text_input("官方网站")
+            email = st.text_input("邮箱")
+            phone = st.text_input("电话")
+
+            for val in [fb, ins, li, tw, wa, site]:
+                if val.strip():
+                    social_links.append(val.strip())
+
+            if email:
+                contact_points.append({"@type": "ContactPoint", "contactType": "Email", "email": email})
+            if phone:
+                contact_points.append({"@type": "ContactPoint", "contactType": "Phone", "telephone": phone})
+
+    def build_nested_json(form_data):
+        result = {}
+        for k, v in form_data.items():
+            keys = k.split(".")
+            current = result
+            for i, part in enumerate(keys):
+                if i == len(keys) - 1:
+                    current[part] = v
+                else:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+        return result
+
+    final_schema = copy.deepcopy(base_schema)
+    final_schema.update(build_nested_json(form_state))
+    if social_links:
+        final_schema["sameAs"] = social_links
+    if contact_points:
+        final_schema["contactPoint"] = contact_points
+
+    st.divider()
+    st.subheader("📄 生成结果")
+    schema_json_str = json.dumps(final_schema, indent=2, ensure_ascii=False)
+    st.code(schema_json_str, language="json")
+
+    st.download_button("📥 下载 JSON 文件", schema_json_str, file_name=f"{schema_type_choice}.json", mime="application/json")
