@@ -5,6 +5,7 @@ import json
 import re
 import os
 from datetime import datetime
+from schema_templates_full import SCHEMA_TEMPLATES
 
 USER_FILE = "users.json"
 
@@ -149,29 +150,18 @@ elif page == "管理后台":
 elif page == "结构化生成器":
     st.title("🧱 结构化数据生成器")
 
-    SCHEMA_FIELDS = {
-        "Product": ["name", "image", "description", "sku", "brand.name", "offers.price", "offers.priceCurrency"],
-        "Article": ["headline", "author.name", "datePublished", "image", "articleBody"],
-        "Organization": ["name", "url", "logo", "contactPoint.telephone", "contactPoint.contactType"],
-        "Event": ["name", "startDate", "endDate", "location.name", "location.address", "organizer.name"],
-        "Person": ["name", "jobTitle", "worksFor.name"],
-        "FAQPage": ["mainEntity.name", "mainEntity.acceptedAnswer.text"],
-        "Review": ["author", "reviewBody", "reviewRating.ratingValue"],
-        "Recipe": ["name", "recipeIngredient", "recipeInstructions", "cookTime"],
-        "Service": ["name", "serviceType", "provider.name", "areaServed"],
-        "SoftwareApplication": ["name", "applicationCategory", "operatingSystem"],
-        "VideoObject": ["name", "description", "uploadDate", "thumbnailUrl"]
-    }
+    def flatten_schema(schema, parent_key=""):
+        fields = []
+        for k, v in schema.items():
+            if isinstance(v, dict):
+                fields += flatten_schema(v, f"{parent_key}{k}.")
+            elif isinstance(v, list) and v and isinstance(v[0], dict):
+                fields += flatten_schema(v[0], f"{parent_key}{k}.")
+            else:
+                fields.append(f"{parent_key}{k}".rstrip("."))
+        return fields
 
-    TEMPLATE_VALUES = {
-        "Article": {
-            "headline": "示例标题",
-            "author.name": "张三",
-            "datePublished": "2024-01-01",
-            "image": "https://example.com/image.jpg",
-            "articleBody": "这是正文内容"
-        }
-    }
+    SCHEMA_FIELDS = {key: flatten_schema(value) for key, value in SCHEMA_TEMPLATES.items()}
 
     SOCIAL_PLATFORMS = {
         "Facebook": "https://facebook.com/",
@@ -188,11 +178,6 @@ elif page == "结构化生成器":
         selected_schema = st.selectbox("选择 Schema 类型", list(SCHEMA_FIELDS.keys()))
         st.markdown("#### 📌 可用字段（点击选中）")
         selected_fields = st.multiselect("字段选择", SCHEMA_FIELDS[selected_schema])
-
-        if st.button("🧪 使用示例模板") and selected_schema in TEMPLATE_VALUES:
-            for k, v in TEMPLATE_VALUES[selected_schema].items():
-                selected_fields.append(k)
-                st.session_state[f"custom_{k}"] = v
 
         st.markdown("#### 🌐 选择社交平台（可多选）")
         selected_socials = st.multiselect("社交平台", list(SOCIAL_PLATFORMS.keys()))
