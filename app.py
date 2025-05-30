@@ -36,21 +36,6 @@ def init_user_db():
 init_user_db()
 user_db = st.session_state.user_db
 
-# ----------------- 登录逻辑 -----------------
-if not st.session_state.authenticated:
-    st.markdown("# 🔒 结构化数据助手 - 登录")
-    username = st.text_input("用户名")
-    password = st.text_input("密码", type="password")
-
-    if st.button("登录"):
-        if username in user_db and user_db[username]["password"] == password:
-            st.session_state.username = username
-            st.session_state.authenticated = True
-            st.success("登录成功！请点击左侧导航栏选择功能模块。")
-        else:
-            st.error("用户名或密码错误")
-    st.stop()
-
 # ----------------- 页面配置 -----------------
 st.set_page_config(page_title="结构化数据助手", layout="wide")
 st.markdown("""
@@ -58,8 +43,42 @@ st.markdown("""
 h1, .stTitle {text-align: center;}
 .stMarkdown, .stDataFrame, .stTextInput, .stTextArea, .stButton {padding: 0 2rem;}
 .sidebar-title {font-size: 1.2rem; font-weight: bold;}
+.login-box {
+  max-width: 400px;
+  margin: 5rem auto;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  background-color: #f9f9f9;
+  text-align: center;
+}
+.login-box h1 {
+  margin-bottom: 1.5rem;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# ----------------- 登录逻辑 -----------------
+if not st.session_state.authenticated:
+    with st.container():
+        st.markdown("""
+        <div class="login-box">
+            <h1>🔒 结构化数据助手 - 登录</h1>
+        </div>
+        """, unsafe_allow_html=True)
+
+        username = st.text_input("用户名", key="username_input")
+        password = st.text_input("密码", type="password", key="password_input")
+        login_clicked = st.button("登录")
+
+        if login_clicked:
+            if username in user_db and user_db[username]["password"] == password:
+                st.session_state.username = username
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("用户名或密码错误")
+    st.stop()
 
 # ----------------- 页面导航 -----------------
 st.sidebar.markdown("## 📂 功能导航")
@@ -67,16 +86,20 @@ page = st.sidebar.radio("请选择功能模块：", ["首页", "结构化生成�
 
 # ----------------- 首页 -----------------
 if page == "首页":
-    # ...（原有首页内容保持不变）
     st.title("📊 结构化数据助手")
-    # ...（省略）
+    # 此处保留你原有首页的全部内容
+    st.markdown("欢迎使用结构化数据助手。")
 
 # ----------------- 管理后台 -----------------
 elif page == "管理后台":
-    # ...（原有管理后台代码保持不变）
-    pass
+    current_user = st.session_state.username
+    if not user_db.get(current_user, {}).get("is_admin"):
+        st.error("🚫 您无权访问后台管理页面")
+        st.stop()
+    st.title("🛠 管理后台")
+    st.write("功能略……")
 
-# ----------------- 新增：结构化数据生成器模块 -----------------
+# ----------------- 结构化生成器 -----------------
 elif page == "结构化生成器":
     st.title("🧱 结构化数据生成器")
     st.markdown("本工具可视化构建结构化数据 JSON-LD，支持多类型 Schema，字段嵌套、自定义字段与社交信息嵌入。")
@@ -128,79 +151,6 @@ elif page == "结构化生成器":
                 "@type": "Place",
                 "address": "text"
             }
-        },
-        "LocalBusiness": {
-            "name": "text",
-            "address": "text",
-            "telephone": "text",
-            "openingHours": "text",
-            "geo": {
-                "@type": "GeoCoordinates",
-                "latitude": "text",
-                "longitude": "text"
-            }
-        },
-        "Organization": {
-            "name": "text",
-            "url": "text",
-            "logo": "text",
-            "contactPoint": {
-                "@type": "ContactPoint",
-                "telephone": "text",
-                "contactType": "text"
-            }
-        },
-        "Person": {
-            "name": "text",
-            "jobTitle": "text",
-            "worksFor": {
-                "@type": "Organization",
-                "name": "text"
-            }
-        },
-        "Review": {
-            "author": "text",
-            "reviewBody": "text",
-            "reviewRating": {
-                "@type": "Rating",
-                "ratingValue": "text"
-            }
-        },
-        "Recipe": {
-            "name": "text",
-            "image": "text",
-            "recipeIngredient": "text",
-            "recipeInstructions": "text",
-            "cookTime": "text"
-        },
-        "Service": {
-            "name": "text",
-            "serviceType": "text",
-            "areaServed": "text",
-            "provider": {
-                "@type": "Organization",
-                "name": "text"
-            }
-        },
-        "SoftwareApplication": {
-            "name": "text",
-            "operatingSystem": "text",
-            "applicationCategory": "text"
-        },
-        "VideoObject": {
-            "name": "text",
-            "description": "text",
-            "uploadDate": "text",
-            "thumbnailUrl": "text"
-        },
-        "FAQPage": {
-            "mainEntity": "array[Question & Answer]"
-        },
-        "HowTo": {
-            "name": "text",
-            "step": "text",
-            "totalTime": "text",
-            "tool": "text"
         }
     }
 
@@ -221,38 +171,35 @@ elif page == "结构化生成器":
         "@type": schema_type_choice
     }
 
-    st.divider()
     st.subheader("📝 填写字段内容")
     render_fields(SCHEMA_TEMPLATES[schema_type_choice], st)
 
-    st.markdown("### ➕ 添加自定义字段")
-    custom_key = st.text_input("自定义字段名（如 brand.color）")
+    st.subheader("➕ 添加自定义字段")
+    custom_key = st.text_input("字段名（如 brand.color）")
     custom_val = st.text_input("字段值")
     if st.button("添加字段") and custom_key and custom_val:
         form_state[custom_key] = custom_val
         st.success(f"已添加字段 `{custom_key}`")
 
-    st.divider()
-    st.subheader("🌐 添加社交信息（可选）")
+    st.subheader("🌐 社交信息")
     use_social = st.checkbox("启用社交联系方式")
     social_links = []
     contact_points = []
 
     if use_social:
-        with st.expander("填写社交信息"):
+        with st.expander("填写社交与联系信息"):
             fb = st.text_input("Facebook")
             ins = st.text_input("Instagram")
             li = st.text_input("LinkedIn")
             tw = st.text_input("Twitter")
             wa = st.text_input("WhatsApp")
-            site = st.text_input("官方网站")
+            site = st.text_input("官网")
             email = st.text_input("邮箱")
             phone = st.text_input("电话")
 
             for val in [fb, ins, li, tw, wa, site]:
                 if val.strip():
                     social_links.append(val.strip())
-
             if email:
                 contact_points.append({"@type": "ContactPoint", "contactType": "Email", "email": email})
             if phone:
@@ -279,9 +226,7 @@ elif page == "结构化生成器":
     if contact_points:
         final_schema["contactPoint"] = contact_points
 
-    st.divider()
     st.subheader("📄 生成结果")
     schema_json_str = json.dumps(final_schema, indent=2, ensure_ascii=False)
     st.code(schema_json_str, language="json")
-
     st.download_button("📥 下载 JSON 文件", schema_json_str, file_name=f"{schema_type_choice}.json", mime="application/json")
