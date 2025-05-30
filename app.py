@@ -27,6 +27,10 @@ def init_user_db():
         st.session_state.authenticated = False
     if "username" not in st.session_state:
         st.session_state.username = ""
+    if "schema_json" not in st.session_state:
+        st.session_state.schema_json = ""
+    if "same_as_links" not in st.session_state:
+        st.session_state.same_as_links = []
 
 init_user_db()
 user_db = st.session_state.user_db
@@ -110,7 +114,6 @@ schema_templates = {
         },
         "sameAs": []
     }
-    # 可继续扩展更多模板类型
 }
 
 # ----------------- 首页 -----------------
@@ -131,14 +134,19 @@ if page == "首页":
 
     if selected_schema:
         schema_object = schema_templates[selected_schema]
-        schema_json = json.dumps(schema_object, indent=2, ensure_ascii=False)
-        edited_schema = st.text_area("结构化数据 JSON-LD 模板", schema_json, height=400)
+        if st.session_state.same_as_links:
+            schema_object["sameAs"] = st.session_state.same_as_links
+        st.session_state.schema_json = json.dumps(schema_object, indent=2, ensure_ascii=False)
+
+        st.session_state.schema_json = st.text_area("结构化数据 JSON-LD 模板", st.session_state.schema_json, height=400)
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.download_button("📋 复制", edited_schema, file_name=f"{selected_schema}.json", mime="application/json")
+            st.download_button("📋 复制", st.session_state.schema_json, file_name=f"{selected_schema}.json", mime="application/json")
         with col2:
             if st.button("🔄 重置"):
+                st.session_state.schema_json = json.dumps(schema_templates[selected_schema], indent=2, ensure_ascii=False)
+                st.session_state.same_as_links = []
                 st.experimental_rerun()
         with col3:
             st.markdown("[🧪 Schema.org 验证器](https://validator.schema.org/)", unsafe_allow_html=True)
@@ -146,16 +154,16 @@ if page == "首页":
             st.markdown("[🔍 Google 富媒体测试](https://search.google.com/test/rich-results)", unsafe_allow_html=True)
 
         st.subheader("🔗 添加社交媒体链接 sameAs")
-        same_as_links = st.text_area("请用逗号分隔社交媒体链接", placeholder="https://twitter.com/xxx, https://facebook.com/xxx")
-        if same_as_links:
+        input_links = st.text_area("请用逗号分隔社交媒体链接", value=", ".join(st.session_state.same_as_links), placeholder="https://twitter.com/xxx, https://facebook.com/xxx")
+        if st.button("更新链接"):
             try:
-                links = [link.strip() for link in same_as_links.split(",") if link.strip()]
-                schema_object["sameAs"] = links
-                schema_json = json.dumps(schema_object, indent=2, ensure_ascii=False)
-                st.success("社媒链接已添加")
-                st.text_area("更新后的结构化数据：", schema_json, height=400)
+                st.session_state.same_as_links = [link.strip() for link in input_links.split(",") if link.strip()]
+                schema_updated = json.loads(st.session_state.schema_json)
+                schema_updated["sameAs"] = st.session_state.same_as_links
+                st.session_state.schema_json = json.dumps(schema_updated, indent=2, ensure_ascii=False)
+                st.success("社媒链接已更新并写入结构化数据")
             except Exception as e:
-                st.error(f"解析链接失败：{e}")
+                st.error(f"链接更新失败：{e}")
 
 # ----------------- 管理后台 -----------------
 elif page == "管理后台":
