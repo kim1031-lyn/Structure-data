@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>CheckCheckCheck</title>
+  <style>
+    :root {
+      --bg-color: #f0f2f5;
+      --text-color: #333;
+      --card-bg: #fff;
+      --primary-color: #007bff;
+      --table-header-bg: #f5f8ff;
+      --shadow-color: rgba(0,0,0,0.08);
+    }
+
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #ddd;
+      --card-bg: #1e1e1e;
+      --primary-color: #4dabf7;
+      --table-header-bg: #1f2b3a;
+      --shadow-color: rgba(0,0,0,0.4);
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-color);
+      padding: 30px;
+      max-width: 1400px;
+      margin: auto;
+      color: var(--text-color);
+      transition: all 0.3s ease;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--text-color);
+    }
+
+    button, input[type="file"], select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0 15px;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      background: white;
+      color: black;
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .result-area {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 20px var(--shadow-color);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    .selectors {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    select {
+      flex-grow: 1;
+      max-width: 48%;
+    }
+
+    select option.invalid {
+      color: red !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #ccc;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    th {
+      background-color: var(--table-header-bg);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      color: var(--primary-color);
+    }
+
+    tbody tr:nth-child(odd) {
+      background-color: rgba(200, 200, 200, 0.05);
+    }
+
+    .loading {
+      font-style: italic;
+      color: #aaa;
+    }
+
+    .error {
+      color: #e63946;
+      margin-top: 5px;
+    }
+
+    .stats {
+      color: #888;
+      margin: 10px 0;
+    }
+
+    .dofollow-text {
+      color: #2a9d8f;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .nofollow-text {
+      color: #e76f51;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .pagination {
+      margin-top: 15px;
+      text-align: center;
+    }
+
+    .pagination button {
+      background-color: var(--primary-color);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      margin: 0 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .pagination button:disabled {
+      background-color: #aaccee;
+      cursor: not-allowed;
+    }
+
+    .copy-btn {
+      margin-left: 6px;
+      padding: 2px 6px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+    }
+
+    .invalid-domain {
+      color: red;
+      font-weight: bold;
+    }
+
+    .flex-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 30px;
+    }
+
+    .flex-item {
+      flex: 1;
+      min-width: 500px;
+    }
+
+    .collapsible {
+      margin-bottom: 10px;
+    }
+
+    .collapsible button.toggle-btn {
+      width: auto;
+      margin-bottom: 10px;
+    }
+
+    .dark-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #222;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 10;
+    }
+  </style>
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+</head>
+<body>
+<div class="dark-toggle" onclick="toggleDark()">🌙 切换主题</div>
+<h1>GoGoGo出发咯</h1>
+<textarea id="urlInput" rows="5" placeholder="https://example.com/page1\nhttps://example.com/page2"></textarea>
+<button onclick="startExtraction()">开始提取</button>
+
+<div class="flex-container">
+  <div class="flex-item">
+    <div class="collapsible">
+      <button class="toggle-btn" onclick="toggleSection('docxBlock')">📄 Word 锚文本提取</button>
+      <div id="docxBlock">
+        <input type="file" id="docxInput" accept=".docx" />
+        <button onclick="handleDocx()">上传并提取</button>
+        <div id="docxResult" class="result-area"></div>
+      </div>
+    </div>
+  </div>
+  <div class="flex-item">
+    <div class="collapsible">
+      <button class="toggle-btn" onclick="toggleSection('webBlock')">🌐 网页抓取锚文本</button>
+      <div id="webBlock">
+        <div class="selectors" style="display:none;">
+          <select id="sourceSelect" onchange="onSourceChange()"><option value="">选择来源页面</option></select>
+          <select id="domainSelect" onchange="onDomainChange()" disabled><option value="">选择目标域名</option></select>
+        </div>
+        <div id="stats" class="stats"></div>
+        <div id="resultArea" class="result-area"></div>
+        <div id="pagination" class="pagination"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allData = {}, inputOrder = [], filteredSource = '', filteredDomain = '', currentPage = 1, currentRows = [], pageSize = 50;
+
+  function toggleDark() {
+    document.body.classList.toggle('dark');
+  }
+
+  function toggleSection(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function getDomainFromURL(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); }
+    catch { return ''; }
+  }
+
+  async function fetchWithFallback(url) {
+    const proxies = [u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`, u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`];
+    for (let proxy of proxies) {
+      try {
+        const res = await fetch(proxy(url));
+        if (!res.ok) throw new Error(`状态 ${res.status}`);
+        return await res.text();
+      } catch {}
+    }
+    throw new Error('所有代理失败');
+  }
+
+async function fetchAndExtract(url) {
+  const html = await fetchWithFallback(url);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  const results = [];
+
+  // 尝试策略1：从常见内容区域提取
+  const selectors = ['main', 'article', '#content', '.post-content'];
+  let container = selectors.map(s => doc.querySelector(s)).find(c => c);
+
+  let anchors = [];
+  if (container) {
+    anchors = container.querySelectorAll('a[href]');
+  }
+
+  // 策略2 fallback：若未提取到任何链接，则从 body 全量扫描
+  if (!anchors || anchors.length === 0) {
+    container = doc.body;
+    anchors = container.querySelectorAll('a[href]');
+  }
+
+  anchors.forEach(a => {
+    const text = a.textContent.trim();
+    const hrefRaw = a.getAttribute('href')?.trim();
+    if (!hrefRaw || !text) return;
+
+    let href;
+    try {
+      href = new URL(hrefRaw, url).href;
+    } catch {
+      href = hrefRaw;
+    }
+
+    const targetDomain = getDomainFromURL(href);
+    const rel = a.getAttribute('rel') || '';
+    const followType = rel.toLowerCase().includes('nofollow') ? 'nofollow' : 'dofollow';
+
+    if (targetDomain) {
+      results.push({ text, href, targetDomain, followType });
+    }
+  });
+
+  return results;
+}
+
+
+  async function startExtraction() {
+    const input = document.getElementById('urlInput').value.trim();
+    const rawUrls = input.split('\n').map(u => u.trim()).filter(Boolean);
+    const urls = [], seen = new Set();
+    rawUrls.forEach(u => {
+      try {
+        const url = new URL(u).href;
+        if (!seen.has(url)) {
+          seen.add(url);
+          urls.push(url);
+        }
+      } catch {}
+    });
+    inputOrder = [...urls];
+    if (!urls.length) return alert('请输入至少一个有效网址');
+
+    allData = {}; filteredSource = filteredDomain = ''; currentPage = 1;
+    document.getElementById('resultArea').innerHTML = '<p class="loading">抓取中，请稍候...</p>';
+    document.querySelector('.selectors').style.display = 'none';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('stats').textContent = '';
+
+    for (const url of urls) {
+      try {
+        const anchors = await fetchAndExtract(url);
+        allData[url] = anchors;
+      } catch (e) {
+        const errP = document.createElement('p');
+        errP.className = 'error';
+        errP.textContent = `抓取失败：${url}（${e.message}）`;
+        document.getElementById('resultArea').appendChild(errP);
+      }
+    }
+
+    const orderedDomainSet = new Set();
+    urls.forEach(u => {
+      (allData[u] || []).forEach(a => {
+        orderedDomainSet.add(a.targetDomain);
+      });
+    });
+
+    const actualDomains = new Set();
+    Object.values(allData).flat().forEach(a => actualDomains.add(a.targetDomain));
+
+    const sourceSelect = document.getElementById('sourceSelect');
+    sourceSelect.innerHTML = `<option value="">选择来源页面</option>${urls.map(u => `<option value="${u}">${u}</option>`).join('')}`;
+
+    const domainSelect = document.getElementById('domainSelect');
+    domainSelect.innerHTML = `<option value="">选择目标域名</option>`;
+    orderedDomainSet.forEach(domain => {
+      const isValid = inputOrder.some(src => getDomainFromURL(src) === domain);
+      const classStr = isValid ? '' : 'class="invalid"';
+      domainSelect.innerHTML += `<option ${classStr} value="${domain}">${domain}</option>`;
+    });
+    domainSelect.disabled = false;
+
+    document.querySelector('.selectors').style.display = 'flex';
+    displayResults();
+  }
+
+  function onSourceChange() {
+    filteredSource = document.getElementById('sourceSelect').value;
+    filteredDomain = '';
+    document.getElementById('domainSelect').value = '';
+    currentPage = 1;
+    displayResults();
+  }
+
+  function onDomainChange() {
+    filteredDomain = document.getElementById('domainSelect').value;
+    currentPage = 1;
+    displayResults();
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).catch(() => alert("复制失败"));
+  }
+
+  function displayResults() {
+    const resultArea = document.getElementById('resultArea');
+    resultArea.innerHTML = '';
+    let rows = [];
+
+    const sources = filteredSource ? [filteredSource] : Object.keys(allData);
+    sources.forEach(source => {
+      (allData[source] || []).forEach(a => {
+        if (!filteredDomain || a.targetDomain === filteredDomain)
+          rows.push({ source, ...a });
+      });
+    });
+
+    if (!rows.length) {
+      resultArea.innerHTML = '<p>无匹配的锚文本。</p>';
+      document.getElementById('stats').textContent = '';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    currentRows = rows;
+    document.getElementById('stats').textContent = `显示锚文本总数：${rows.length}`;
+    showPage(currentPage);
+  }
+
+  function showPage(page) {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const rows = currentRows.slice(start, end);
+
+    const table = document.createElement('table');
+    table.innerHTML = `<thead><tr><th>来源页面</th><th>锚文本</th><th>目标链接</th><th>目标域名</th><th>链接类型</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.source}</td>
+        <td>${row.text}<button class="copy-btn" onclick="copyToClipboard('${row.text}')">复制</button></td>
+        <td><a href="${row.href}" target="_blank">${row.href}</a><button class="copy-btn" onclick="copyToClipboard('${row.href}')">复制</button></td>
+        <td>${row.targetDomain}</td>
+        <td class="${row.followType === 'nofollow' ? 'nofollow-text' : 'dofollow-text'}">${row.followType}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    const resultArea = document.getElementById('resultArea');
+    resultArea.innerHTML = '';
+    resultArea.appendChild(table);
+
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    const totalPages = Math.ceil(currentRows.length / pageSize);
+    if (totalPages <= 1) return;
+
+    const prev = document.createElement('button');
+    prev.textContent = '上一页';
+    prev.disabled = page === 1;
+    prev.onclick = () => { currentPage--; showPage(currentPage); };
+    pagination.appendChild(prev);
+
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      btn.disabled = i === page;
+      btn.onclick = () => { currentPage = i; showPage(i); };
+      pagination.appendChild(btn);
+    }
+
+    const next = document.createElement('button');
+    next.textContent = '下一页';
+    next.disabled = page === totalPages;
+    next.onclick = () => { currentPage++; showPage(currentPage); };
+    pagination.appendChild(next);
+  }
+
+  function handleDocx() {
+    const input = document.getElementById('docxInput');
+    const resultDiv = document.getElementById('docxResult');
+    resultDiv.innerHTML = '<p class="loading">正在解析 Word 文档...</p>';
+
+    if (!input.files.length) return alert('请先选择 Word 文件');
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      mammoth.convertToHtml({ arrayBuffer: event.target.result }).then(result => {
+        const html = result.value;
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const links = doc.querySelectorAll('a[href]');
+        if (!links.length) {
+          resultDiv.innerHTML = '<p>未提取到任何链接。</p>';
+          return;
+        }
+
+        let table = `<table><thead><tr><th>锚文本</th><th>链接地址</th></tr></thead><tbody>`;
+        links.forEach(a => {
+          const text = a.textContent.trim();
+          const href = a.getAttribute('href').trim();
+          if (text && href) {
+            table += `<tr><td>${text}</td><td><a href="${href}" target="_blank">${href}</a></td></tr>`;
+          }
+        });
+        table += '</tbody></table>';
+        resultDiv.innerHTML = table;
+      }).catch(err => {
+        resultDiv.innerHTML = `<p class="error">解析失败：${err.message}</p>`;
+      });
+    };
+    reader.readAsArrayBuffer(input.files[0]);
+  }
+</script>
+</body>
+</html>
